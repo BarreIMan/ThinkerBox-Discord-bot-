@@ -136,7 +136,7 @@ def run_bot():
             await ctx.send(f"Hello {ctx.message.author.mention}!")
 
     @client.command(name = "loop")
-    async def sayHi(ctx, mode):
+    async def singleLoop(ctx, mode):
         if mode == "single":
 
             if ctx.guild.id not in loopSingleSwitches:
