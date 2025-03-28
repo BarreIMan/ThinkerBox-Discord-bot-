@@ -13,6 +13,8 @@ def run_bot():
     intents.members = True
     client = commands.Bot(command_prefix= "?", intents = intents)
 
+    loopSingleSwitches = {}
+    loopAllSwitches = {}
     queues = {}
     voice_clients = {}
     yt_dl_options = {"format": "bestaudio/best"}
@@ -30,15 +32,19 @@ def run_bot():
     
     @client.event
     async def on_member_join(member):
-        await member.send("**Haku** welcomes you to 3 AM! Don't get sleepy now...")
+        await member.send("**Haku welcomes you to 3 AM! Don't get sleepy now...**")
 
         role = discord.utils.get(member.guild.roles, name="Thiếu Ngủ")
         await member.add_roles(role)
     
-    async def play_next(ctx):
-        if queues[ctx.guild.id] != []:
-            link = queues[ctx.guild.id].pop(0)
-            await play(ctx, link)
+    async def play_next(ctx, link):
+        if loopSingleSwitches[ctx.guild.id] != []:
+            if loopSingleSwitches[ctx.guild.id] == True:
+                await play(ctx, link)
+
+            elif queues[ctx.guild.id] != []: # if song queue is not empty
+                link = queues[ctx.guild.id].pop(0)
+                await play(ctx, link)
 
     @client.command(name ="play")
 
@@ -57,22 +63,22 @@ def run_bot():
 
             if 'entries' in data:
                 data = data['entries'][0]
-                
-            if ctx.voice_client.is_playing():
-                    if ctx.guild.id not in queues:
-                        queues[ctx.guild.id] = []
-                    queues[ctx.guild.id].append(link)
 
-                    songName = data['title']
-                    await ctx.send(f"{songName} **is added to queue.**")
-            else:
+            if ctx.voice_client.is_playing(): #add to queue if a song is already playing
+                if ctx.guild.id not in queues:
+                    queues[ctx.guild.id] = []
+                
+                queues[ctx.guild.id].append(link)
+                songName = data['title']
+                await ctx.send(f"{songName} **is added to queue.**")
+
+            else: #play the next song normally if there is a next song else just ends
                 song = data['url']
                 songName = data['title']
                 player = discord.FFmpegOpusAudio(song, **ffmpeg_options)
                 await ctx.send(f"**Now playing:** {songName}")
-                # await ctx.send(f"{songName}")
                 
-                voice_clients[ctx.guild.id].play(player, after= lambda e: asyncio.run_coroutine_threadsafe(play_next(ctx), client.loop))
+                voice_clients[ctx.guild.id].play(player, after= lambda e: asyncio.run_coroutine_threadsafe(play_next(ctx, link), client.loop))
             
         except Exception as e:
             print(e)
@@ -101,6 +107,10 @@ def run_bot():
         except Exception as e:
             print(e)
     
+    @client.command(name= "skip")
+    async def skipSong(ctx):
+        voice_clients[ctx.guild.id].stop()
+
     @client.command(name= "queue")
     async def queue(ctx):
 
@@ -117,6 +127,7 @@ def run_bot():
             await ctx.send("Queue cleared!")
         else:
             await ctx.send(f"{client.user} thinks that there is no queue to clear...")
+
     @client.command(name = "hello")
     async def sayHi(ctx):
         if ctx.message.author.id == 868511807726309376:
@@ -124,7 +135,26 @@ def run_bot():
         else:
             await ctx.send(f"Hello {ctx.message.author.mention}!")
 
-    # async def giveRole(ctx, role):
-    #     if ctx.message.author.id == 868511807726309376:
-    #         await ctx.send(f"Creator! Haku just assigned")
+    @client.command(name = "loop")
+    async def sayHi(ctx, mode):
+        if mode == "single":
+
+            if ctx.guild.id not in loopSingleSwitches:
+                try:
+                    loopSingleSwitches[ctx.guild.id] = True
+                except Exception as e:
+                    print(e)
+                
+            await ctx.send("**Now looping one song!**")
+        elif mode == "all":
+            await ctx.send("**Now looping all songs**!")
+        elif mode == "off":
+            if ctx.guild.id in loopSingleSwitches:
+                try:
+                    loopSingleSwitches[ctx.guild.id] = False
+                except Exception as e:
+                    print(e)
+
+            await ctx.send("**Stopped looping.**")
+
     client.run(DISCORD_TOKEN)
