@@ -38,7 +38,7 @@ def run_bot():
         await member.add_roles(role)
     
     async def play_next(ctx, link):
-        if loopSingleSwitches[ctx.guild.id] != []:
+        if ctx.guild.id in loopSingleSwitches:
             if loopSingleSwitches[ctx.guild.id] == True:
                 await play(ctx, link)
 
@@ -141,10 +141,12 @@ def run_bot():
 
             if ctx.guild.id not in loopSingleSwitches:
                 try:
-                    loopSingleSwitches[ctx.guild.id] = True
+                    loopSingleSwitches[ctx.guild.id] = []
                 except Exception as e:
                     print(e)
-                
+
+            loopSingleSwitches[ctx.guild.id] = True
+
             await ctx.send("**Now looping one song!**")
         elif mode == "all":
             await ctx.send("**Now looping all songs**!")
