@@ -4,15 +4,18 @@ import os
 import asyncio
 import yt_dlp
 from dotenv import load_dotenv
+import ThinkerBoxAI
 
 def run_bot():
     load_dotenv()
     DISCORD_TOKEN = os.getenv("discord_token")
     intents = discord.Intents.default()
     intents.message_content = True
+    intents.messages = True
     intents.members = True
     client = commands.Bot(command_prefix= "?", intents = intents)
 
+    AI_Cooldown_For_User = {}
     loopSingleSwitches = {}
     loopAllSwitches = {}
     queues = {}
@@ -36,7 +39,7 @@ def run_bot():
 
         role = discord.utils.get(member.guild.roles, name="Thiếu Ngủ")
         await member.add_roles(role)
-    
+
     async def play_next(ctx, link):
         if ctx.guild.id in loopSingleSwitches:
             if loopSingleSwitches[ctx.guild.id] == True:
@@ -45,6 +48,19 @@ def run_bot():
             elif queues[ctx.guild.id] != []: # if song queue is not empty
                 link = queues[ctx.guild.id].pop(0)
                 await play(ctx, link)
+
+    @client.command(name= "history")
+    async def get_history(ctx):
+        channel = ctx.channel
+        history_log = ""
+        messages = [message async for message in channel.history(limit=50)]
+
+        for message in range(len(messages)-1, -1, -1):
+            text = messages[message]
+            # print(f"Time:{text.created_at}| UserID: {text.author.id} | User {text.author} said: {text.clean_content}")
+            history_log += f"Time:{text.created_at}| UserID: {text.author.id} | User {text.author} said: {text.clean_content}\n\n"
+            
+
 
     @client.command(name ="play")
 
@@ -76,7 +92,7 @@ def run_bot():
                 song = data['url']
                 songName = data['title']
                 player = discord.FFmpegOpusAudio(song, **ffmpeg_options)
-                await ctx.send(f"**Now playing:** {songName}")
+                await ctx.send(f"**Now playing:** {songName}", delete_after= 30, silent= True)
                 
                 voice_clients[ctx.guild.id].play(player, after= lambda e: asyncio.run_coroutine_threadsafe(play_next(ctx, link), client.loop))
             
@@ -103,6 +119,9 @@ def run_bot():
             voice_clients[ctx.guild.id].stop()
             await voice_clients[ctx.guild.id].disconnect()
             del voice_clients[ctx.guild.id]
+            del loopSingleSwitches[ctx.guild.id]
+            del loopAllSwitches[ctx.guild.id]
+            del queues[ctx.guild.id]
 
         except Exception as e:
             print(e)
@@ -127,13 +146,6 @@ def run_bot():
             await ctx.send("Queue cleared!")
         else:
             await ctx.send(f"{client.user} thinks that there is no queue to clear...")
-
-    @client.command(name = "hello")
-    async def sayHi(ctx):
-        if ctx.message.author.id == 868511807726309376:
-            await ctx.send(f"Hello dumbass creator! ||{ctx.message.author.mention}||")
-        else:
-            await ctx.send(f"Hello {ctx.message.author.mention}!")
 
     @client.command(name = "loop")
     async def singleLoop(ctx, mode):
