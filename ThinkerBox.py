@@ -15,7 +15,7 @@ def run_bot():
     intents.members = True
     client = commands.Bot(command_prefix= "?", intents = intents)
 
-    AI_Cooldown_For_User = {}
+    CurrentPosInQueue = {}
     loopSingleSwitches = {}
     loopAllSwitches = {}
     queues = {}
@@ -40,31 +40,40 @@ def run_bot():
         role = discord.utils.get(member.guild.roles, name="Thiếu Ngủ")
         await member.add_roles(role)
 
+
+    @client.event
+    async def on_message(message):
+
+        await client.process_commands(message)
+
     async def play_next(ctx, link):
-        if ctx.guild.id in loopSingleSwitches:
-            if loopSingleSwitches[ctx.guild.id] == True:
-                await play(ctx, link)
+        if ctx.guild.id not in loopSingleSwitches:
+            loopSingleSwitches[ctx.guild.id] = []
+        if ctx.guild.id not in loopAllSwitches:
+            loopSingleSwitches[ctx.guild.id] = []
 
-            elif queues[ctx.guild.id] != []: # if song queue is not empty
+        if loopSingleSwitches[ctx.guild.id] == True:
+
+            await play(ctx, link, insert= False)
+
+        elif loopAllSwitches[ctx.guild.id] == True:
+            if queues[ctx.guild.id] != []:
                 link = queues[ctx.guild.id].pop(0)
-                await play(ctx, link)
+                await play (ctx, link, insert= True)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
 
-    @client.command(name= "history")
-    async def get_history(ctx):
-        channel = ctx.channel
-        history_log = ""
-        messages = [message async for message in channel.history(limit=50)]
+        elif queues[ctx.guild.id] != []: # if song queue is not empty
+            queues[ctx.guild.id].pop(0) # pop to remove the previous song
+            print("test lol")
 
-        for message in range(len(messages)-1, -1, -1):
-            text = messages[message]
-            # print(f"Time:{text.created_at}| UserID: {text.author.id} | User {text.author} said: {text.clean_content}")
-            history_log += f"Time:{text.created_at}| UserID: {text.author.id} | User {text.author} said: {text.clean_content}\n\n"
-            
-
+            if queues[ctx.guild.id] != []: # play the next song if there is one lol
+                link = queues[ctx.guild.id][0]
+                print(link)
+                await play(ctx, link, insert= False)
 
     @client.command(name ="play")
 
-    async def play(ctx, link):
+    async def play(ctx, link: str, insert= True):
+
         try:
             voice_client = await ctx.author.voice.channel.connect()
             voice_clients[voice_client.guild.id] = voice_client
@@ -72,23 +81,26 @@ def run_bot():
         except Exception as e:
             print(e)
 
+        if ctx.guild.id not in queues:
+            queues[ctx.guild.id] = []
+        
+        if insert == True:
+            queues[ctx.guild.id].append(link)   
+
         try:
-
-            loop = asyncio.get_event_loop()
-            data = await loop.run_in_executor(None, lambda: ytdl.extract_info(link, download= False))
-
-            if 'entries' in data:
-                data = data['entries'][0]
+            
 
             if ctx.voice_client.is_playing(): #add to queue if a song is already playing
-                if ctx.guild.id not in queues:
-                    queues[ctx.guild.id] = []
-                
-                queues[ctx.guild.id].append(link)
+                loop = asyncio.get_event_loop()
+                data = await loop.run_in_executor(None, lambda: ytdl.extract_info(link, download= False))
+                # queues[ctx.guild.id].append(link)
                 songName = data['title']
                 await ctx.send(f"{songName} **is added to queue.**")
 
-            else: #play the next song normally if there is a next song else just ends
+            else: #play the song
+                link = queues[ctx.guild.id][0]
+                loop = asyncio.get_event_loop()
+                data = await loop.run_in_executor(None, lambda: ytdl.extract_info(link, download= False))
                 song = data['url']
                 songName = data['title']
                 player = discord.FFmpegOpusAudio(song, **ffmpeg_options)
@@ -128,6 +140,7 @@ def run_bot():
     
     @client.command(name= "skip")
     async def skipSong(ctx):
+
         voice_clients[ctx.guild.id].stop()
 
     @client.command(name= "queue")
@@ -152,20 +165,32 @@ def run_bot():
         if mode == "single":
 
             if ctx.guild.id not in loopSingleSwitches:
-                try:
-                    loopSingleSwitches[ctx.guild.id] = []
-                except Exception as e:
-                    print(e)
+                loopSingleSwitches[ctx.guild.id] = []
+            if ctx.guild.id not in loopAllSwitches:
+                loopSingleSwitches[ctx.guild.id] = []
 
             loopSingleSwitches[ctx.guild.id] = True
+            loopAllSwitches[ctx.guild.id] = False
 
             await ctx.send("**Now looping one song!**")
+
         elif mode == "all":
+
+            if ctx.guild.id not in loopSingleSwitches:
+                loopSingleSwitches[ctx.guild.id] = []
+            if ctx.guild.id not in loopAllSwitches:
+                loopSingleSwitches[ctx.guild.id] = []
+
+            loopAllSwitches[ctx.guild.id] = True
+            loopSingleSwitches[ctx.guild.id] = False
+
             await ctx.send("**Now looping all songs**!")
+
         elif mode == "off":
             if ctx.guild.id in loopSingleSwitches:
                 try:
                     loopSingleSwitches[ctx.guild.id] = False
+                    loopAllSwitches[ctx.guild.id] = False
                 except Exception as e:
                     print(e)
 
