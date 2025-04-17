@@ -48,12 +48,11 @@ def run_bot():
 
     async def play_next(ctx, link):
         if ctx.guild.id not in loopSingleSwitches:
-            loopSingleSwitches[ctx.guild.id] = []
+            loopSingleSwitches[ctx.guild.id] = False
         if ctx.guild.id not in loopAllSwitches:
-            loopSingleSwitches[ctx.guild.id] = []
+            loopAllSwitches[ctx.guild.id] = False
 
         if loopSingleSwitches[ctx.guild.id] == True:
-
             await play(ctx, link, insert= False)
 
         elif loopAllSwitches[ctx.guild.id] == True:
@@ -63,7 +62,6 @@ def run_bot():
 
         elif queues[ctx.guild.id] != []: # if song queue is not empty
             queues[ctx.guild.id].pop(0) # pop to remove the previous song
-            print("test lol")
 
             if queues[ctx.guild.id] != []: # play the next song if there is one lol
                 link = queues[ctx.guild.id][0]
@@ -85,7 +83,7 @@ def run_bot():
             queues[ctx.guild.id] = []
         
         if insert == True:
-            queues[ctx.guild.id].append(link)   
+            queues[ctx.guild.id].append(link)
 
         try:
             
